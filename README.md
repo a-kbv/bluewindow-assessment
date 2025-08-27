@@ -36,4 +36,16 @@ docker-compose exec postgres psql -U bluewindow -d bluewindow_db
 
 # connect to PostgreSQL
 docker-compose exec postgres psql -U bluewindow -d bluewindow_db
+
+# installing composer deps inside the container
+docker-compose exec php composer require --dev symfony/maker-bundle
+
+# creating a new controller
+docker-compose exec php bin/console make:controller
+
+# creating a new entity
+docker-compose exec php bin/console make:entity
+
+docker-compose exec php bin/console doctrine:query:sql "SELECT 1 as test"
+
 ```
