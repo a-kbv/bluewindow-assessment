@@ -22,6 +22,9 @@ class Brand
     #[ORM\Column(nullable: true)]
     private ?int $rating = null;
 
+    #[ORM\Column(length: 2, nullable: true)]
+    private ?string $countryCode = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -59,6 +62,18 @@ class Brand
     public function setRating(?int $rating): static
     {
         $this->rating = $rating;
+
+        return $this;
+    }
+
+    public function getCountryCode(): ?string
+    {
+        return $this->countryCode;
+    }
+
+    public function setCountryCode(string $countryCode): static
+    {
+        $this->countryCode = $countryCode;
 
         return $this;
     }

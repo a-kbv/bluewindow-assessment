@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Brand;
 use App\Form\BrandType;
 use App\Repository\BrandRepository;
+use App\Service\GeolocationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -15,10 +16,55 @@ use Symfony\Component\Routing\Attribute\Route;
 final class BrandController extends AbstractController
 {
     #[Route(name: 'app_brand_index', methods: ['GET'])]
-    public function index(BrandRepository $brandRepository): Response
+    public function index(BrandRepository $brandRepository, GeolocationService $geolocationService): Response
     {
+        // Get current country from Cloudflare header
+        $currentCountry = $geolocationService->getCurrentCountry();
+
+        if ($currentCountry) {
+            // Country detected - show country-specific brands
+            $brands = $brandRepository->findBy(['countryCode' => $currentCountry]);
+        } else {
+            // No country detected - show default toplist with all casinos
+            $brands = $brandRepository->findAll();
+        }
+
+        // Sort by rating (descending)
+        usort($brands, function($a, $b) {
+            return $b->getRating() <=> $a->getRating();
+        });
+
         return $this->render('brand/index.html.twig', [
-            'brands' => $brandRepository->findAll(),
+            'brands' => $brands,
+            'currentCountry' => $currentCountry ?? 'No country detected',
+        ]);
+    }
+
+    #[Route('/fake-header/{countryCode}', name: 'app_brand_fake_header', methods: ['GET'])]
+    public function fakeHeader(string $countryCode, Request $request, BrandRepository $brandRepository, GeolocationService $geolocationService): Response
+    {
+        // Manually set the CF-IPCountry header for testing
+        $request->headers->set('CF-IPCountry', $countryCode);
+
+        // Get current country from the faked header
+        $currentCountry = $geolocationService->getCurrentCountry();
+
+        if ($currentCountry) {
+            // Country detected - show country-specific brands
+            $brands = $brandRepository->findBy(['countryCode' => $currentCountry]);
+        } else {
+            // No country detected - show default toplist with all casinos
+            $brands = $brandRepository->findAll();
+        }
+
+        // Sort by rating (descending)
+        usort($brands, function($a, $b) {
+            return $b->getRating() <=> $a->getRating();
+        });
+
+        return $this->render('brand/index.html.twig', [
+            'brands' => $brands,
+            'currentCountry' => $currentCountry ?? 'Default',
         ]);
     }
 
