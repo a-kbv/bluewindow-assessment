@@ -1,51 +1,115 @@
-# BlueWindow Assessment - Brand Toplist API
+# Casino Brand Toplist Application
 
-A Symfony-based API application for managing brand toplists with geolocation support using Cloudflare headers.
+A CRUD application for managing casino brands with geolocation-based toplist configuration. Built with Symfony 7, PHP 8.3, and Docker.
+
+## Features
+
+- Full CRUD operations for casino brands
+- Unified RESTful API and web interface endpoints
+- Comprehensive data validation
+- Geolocation-based toplist using Cloudflare CF-IPCountry header
+- Mobile-responsive frontend
+- Docker containerization
+- PostgreSQL database with migrations
+- Data fixtures with real casino images
+
+## Quick Start
 
 ### Requirements
+
 - Docker
 - Docker Compose
+- Git
 
-### Starting the Application
+### Setup
 
-1. **Start all services**
+1. Clone the repository
+2. Start the application
+
    ```bash
    docker-compose up -d
    ```
 
-1. **Nginx** will start and listen on port 8080
-2. **PHP 8.3** container will build with all necessary extensions
-3. **PostgreSQL** will initialize with database `bluewindow_db`
-4. All services will be networked together automatically
+3. Open http://localhost:8080 in your browser
 
-## Commands
+## API Routes
 
+The application provides unified endpoints that automatically detect whether to return JSON (API) or HTML (web interface) based on the request headers.
+
+### Unified Endpoints
+
+- `GET /brand` - List all brands (filtered by geolocation)
+  - Returns HTML page by default
+  - Returns JSON when `Accept: application/json` header is set
+- `GET /brand/{id}` - Get specific brand details
+- `POST /brand/new` - Create new brand
+- `PUT /brand/{id}/edit` - Update existing brand
+- `DELETE /brand/{id}` - Delete brand
+
+### Geolocation Testing
+
+- `GET /brand/fake-header/{countryCode}` - Test geolocation with fake country header
+  - Example: `/brand/fake-header/BG` for Bulgaria
+  - Example: `/brand/fake-header/US` for United States
+
+  Use the fake-header route to test different country scenarios:
+
+  1. **Bulgaria**: http://localhost:8080/brand/fake-header/BG
+  2. **United States**: http://localhost:8080/brand/fake-header/US
+  3. **Invalid country**: http://localhost:8080/brand/fake-header/XYZ
+
+## API Usage Examples
+
+### Get Brands List (JSON)
 ```bash
-# start services
-docker-compose up -d
-
-# stop services
-docker-compose down
-
-# view logs
-docker-compose logs -f
-
-# execute commands in containers
-docker-compose exec php php -v
-docker-compose exec postgres psql -U bluewindow -d bluewindow_db
-
-# connect to PostgreSQL
-docker-compose exec postgres psql -U bluewindow -d bluewindow_db
-
-# installing composer deps inside the container
-docker-compose exec php composer require --dev symfony/maker-bundle
-
-# creating a new controller
-docker-compose exec php bin/console make:controller
-
-# creating a new entity
-docker-compose exec php bin/console make:entity
-
-docker-compose exec php bin/console doctrine:query:sql "SELECT 1 as test"
-
+curl -H "Accept: application/json" http://localhost:8080/brand
 ```
+
+### Create New Brand (JSON)
+```bash
+curl -X POST http://localhost:8080/brand/new \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{"name":"New Casino","image":"https://example.com/image.jpg","rating":5,"countryCode":"US"}'
+```
+
+### Update Brand (JSON)
+```bash
+curl -X PUT http://localhost:8080/brand/1/edit \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{"rating":4}'
+```
+
+### Delete Brand
+```bash
+curl -X DELETE http://localhost:8080/brand/1
+```
+
+## Data Validation
+
+The application includes comprehensive validation for all brand data:
+
+- **Name**: Required, 2-255 characters
+- **Image**: Valid URL, max 500 characters
+- **Rating**: Integer between 1-5
+- **Country Code**: Exactly 2 uppercase letters (ISO-2 format)
+
+Validation errors are returned as JSON for API requests and displayed in forms for web requests.
+
+## Geolocation Logic
+
+The application automatically detects user location using the `CF-IPCountry` HTTP header from Cloudflare:
+
+- **Country detected**: Shows brands filtered by country code
+- **No country detected**: Shows global toplist with all available casinos
+- **Supported format**: ISO-2 country codes (BG, US, UK, etc.)
+
+## Database
+
+- **Database**: PostgreSQL 15
+- **Host**: localhost:5432
+- **Database**: bluewindow_db
+- **Username**: bluewindow
+- **Password**: password
+
