@@ -22,12 +22,11 @@ class GeolocationService
 
         if (!$request) {
             $this->logger->info('No request available, returning null for country');
-            return null; // No request, show default toplist
+            return null;
         }
 
         $country = $request->headers->get("CF-IPCountry");
 
-        // Debug logging
         $this->logger->info('Geolocation debug', [
             'CF-IPCountry' => $country,
             'all_headers' => $request->headers->all(),
@@ -41,6 +40,6 @@ class GeolocationService
         }
 
         $this->logger->info('No valid country detected, returning null');
-        return null; // No valid country detected, show default toplist
+        return null;
     }
 }

@@ -32,9 +32,8 @@ final class BrandController extends AbstractController
             return $b->getRating() <=> $a->getRating();
         });
 
-        // Check if this is an API request
-        if ($this->isApiRequest($request)) {
-            return $this->jsonResponse($brands, $currentCountry);
+        if ($this->shouldReturnJson($request)) {
+            return $this->createJsonResponse($brands, $currentCountry);
         }
 
         return $this->render('brand/index.html.twig', [
@@ -43,37 +42,25 @@ final class BrandController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'app_brand_show', methods: ['GET'])]
-    public function show(Request $request, Brand $brand): Response
-    {
-        if ($this->isApiRequest($request)) {
-            return $this->jsonResponse([$brand]);
-        }
-
-        return $this->render('brand/show.html.twig', [
-            'brand' => $brand,
-        ]);
-    }
-
     #[Route('/new', name: 'app_brand_new', methods: ['GET', 'POST'])]
     public function new(Request $request, EntityManagerInterface $entityManager, ValidatorInterface $validator): Response
     {
         if ($request->isMethod('POST')) {
-            $data = $this->getRequestData($request);
+            $payload = $this->extractRequestPayload($request);
             $brand = new Brand();
-            $this->populateBrand($brand, $data);
+            $this->hydrateBrandFromData($brand, $payload);
 
             $errors = $validator->validate($brand);
             if (count($errors) > 0) {
-                if ($this->isApiRequest($request)) {
+                if ($this->shouldReturnJson($request)) {
                     return new JsonResponse([
-                        'success' => false,
-                        'errors' => $this->getValidationErrors($errors)
+                        'status' => 'error',
+                        'validation_errors' => $this->formatValidationErrors($errors)
                     ], 400);
                 }
 
                 $form = $this->createForm(BrandType::class, $brand);
-                $form->submit($data);
+                $form->submit($payload);
                 return $this->render('brand/new.html.twig', [
                     'brand' => $brand,
                     'form' => $form,
@@ -83,10 +70,10 @@ final class BrandController extends AbstractController
             $entityManager->persist($brand);
             $entityManager->flush();
 
-            if ($this->isApiRequest($request)) {
+            if ($this->shouldReturnJson($request)) {
                 return new JsonResponse([
-                    'success' => true,
-                    'data' => $this->brandToArray($brand)
+                    'status' => 'created',
+                    'brand' => $this->mapBrandToResponse($brand)
                 ], 201);
             }
 
@@ -99,24 +86,36 @@ final class BrandController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}/edit', name: 'app_brand_edit', methods: ['GET', 'POST', 'PUT'])]
+    #[Route('/{id}', name: 'app_brand_show', methods: ['GET'])]
+    public function show(Request $request, Brand $brand): Response
+    {
+        if ($this->shouldReturnJson($request)) {
+            return $this->createJsonResponse([$brand]);
+        }
+
+        return $this->render('brand/show.html.twig', [
+            'brand' => $brand,
+        ]);
+    }
+
+    #[Route('/{id}/edit', name: 'app_brand_edit', methods: ['GET', 'POST', 'PATCH'])]
     public function edit(Request $request, Brand $brand, EntityManagerInterface $entityManager, ValidatorInterface $validator): Response
     {
-        if ($request->isMethod('POST') || $request->isMethod('PUT')) {
-            $data = $this->getRequestData($request);
-            $this->populateBrand($brand, $data);
+        if ($request->isMethod('POST') || $request->isMethod('PATCH')) {
+            $payload = $this->extractRequestPayload($request);
+            $this->hydrateBrandFromData($brand, $payload);
 
             $errors = $validator->validate($brand);
             if (count($errors) > 0) {
-                if ($this->isApiRequest($request)) {
+                if ($this->shouldReturnJson($request)) {
                     return new JsonResponse([
-                        'success' => false,
-                        'errors' => $this->getValidationErrors($errors)
+                        'status' => 'error',
+                        'validation_errors' => $this->formatValidationErrors($errors)
                     ], 400);
                 }
 
                 $form = $this->createForm(BrandType::class, $brand);
-                $form->submit($data);
+                $form->submit($payload);
                 return $this->render('brand/edit.html.twig', [
                     'brand' => $brand,
                     'form' => $form,
@@ -125,10 +124,10 @@ final class BrandController extends AbstractController
 
             $entityManager->flush();
 
-            if ($this->isApiRequest($request)) {
+            if ($this->shouldReturnJson($request)) {
                 return new JsonResponse([
-                    'success' => true,
-                    'data' => $this->brandToArray($brand)
+                    'status' => 'updated',
+                    'brand' => $this->mapBrandToResponse($brand)
                 ]);
             }
 
@@ -148,7 +147,7 @@ final class BrandController extends AbstractController
         $entityManager->remove($brand);
         $entityManager->flush();
 
-        return new JsonResponse(['success' => true, 'message' => 'Brand deleted successfully']);
+        return new JsonResponse(['status' => 'deleted', 'message' => 'Brand removed successfully']);
     }
 
     #[Route('/fake-header/{countryCode}', name: 'app_brand_fake_header', methods: ['GET'])]
@@ -167,8 +166,8 @@ final class BrandController extends AbstractController
             return $b->getRating() <=> $a->getRating();
         });
 
-        if ($this->isApiRequest($request)) {
-            return $this->jsonResponse($brands, $currentCountry);
+        if ($this->shouldReturnJson($request)) {
+            return $this->createJsonResponse($brands, $currentCountry);
         }
 
         return $this->render('brand/index.html.twig', [
@@ -177,22 +176,30 @@ final class BrandController extends AbstractController
         ]);
     }
 
-    private function isApiRequest(Request $request): bool
+    private function shouldReturnJson(Request $request): bool
     {
         return $request->headers->get('Accept') === 'application/json'
             || $request->getRequestFormat() === 'json'
             || $request->headers->get('Content-Type') === 'application/json';
     }
 
-    private function getRequestData(Request $request): array
+    private function extractRequestPayload(Request $request): array
     {
         if ($request->headers->get('Content-Type') === 'application/json') {
             return json_decode($request->getContent(), true) ?? [];
         }
-        return $request->request->all();
+
+        $data = $request->request->all();
+
+        // Handle nested form data (e.g., brand[name], brand[rating])
+        if (isset($data['brand']) && is_array($data['brand'])) {
+            return $data['brand'];
+        }
+
+        return $data;
     }
 
-    private function populateBrand(Brand $brand, array $data): void
+    private function hydrateBrandFromData(Brand $brand, array $data): void
     {
         if (isset($data['name'])) $brand->setName($data['name']);
         if (isset($data['image'])) $brand->setImage($data['image']);
@@ -200,7 +207,7 @@ final class BrandController extends AbstractController
         if (isset($data['countryCode'])) $brand->setCountryCode(strtoupper($data['countryCode']));
     }
 
-    private function brandToArray(Brand $brand): array
+    private function mapBrandToResponse(Brand $brand): array
     {
         return [
             'id' => $brand->getId(),
@@ -211,21 +218,21 @@ final class BrandController extends AbstractController
         ];
     }
 
-    private function jsonResponse(array $brands, ?string $currentCountry = null): JsonResponse
+    private function createJsonResponse(array $brands, ?string $currentCountry = null): JsonResponse
     {
-        $data = array_map([$this, 'brandToArray'], $brands);
+        $brandData = array_map([$this, 'mapBrandToResponse'], $brands);
 
         return new JsonResponse([
-            'success' => true,
-            'data' => $data,
-            'geolocation' => [
-                'detectedCountry' => $currentCountry,
-                'totalBrands' => count($data)
+            'status' => 'ok',
+            'brands' => $brandData,
+            'meta' => [
+                'country' => $currentCountry,
+                'total_count' => count($brandData)
             ]
         ]);
     }
 
-    private function getValidationErrors($errors): array
+    private function formatValidationErrors($errors): array
     {
         $errorMessages = [];
         foreach ($errors as $error) {

@@ -46,7 +46,6 @@ class Brand
     public function setName(string $name): static
     {
         $this->name = $name;
-
         return $this;
     }
 
@@ -58,7 +57,6 @@ class Brand
     public function setImage(?string $image): static
     {
         $this->image = $image;
-
         return $this;
     }
 
@@ -70,7 +68,6 @@ class Brand
     public function setRating(?int $rating): static
     {
         $this->rating = $rating;
-
         return $this;
     }
 
@@ -82,7 +79,6 @@ class Brand
     public function setCountryCode(?string $countryCode): static
     {
         $this->countryCode = $countryCode;
-
         return $this;
     }
 }

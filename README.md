@@ -32,9 +32,17 @@ A CRUD application for managing casino brands with geolocation-based toplist con
 
 3. Open http://localhost:8080 in your browser
 
+4. Load fixtures
+
+   ```bash
+    docker-compose exec php php bin/console doctrine:fixtures:load --no-interaction
+   ```
+
+5. navigate to http://localhost:8080/brand/fake-header/BG
+
 ## API Routes
 
-The application provides unified endpoints that automatically detect whether to return JSON (API) or HTML (web interface) based on the request headers.
+The app uses unified endpoints that detect whether to return JSON (API) or HTML (web interface) based on request headers.
 
 ### Unified Endpoints
 
@@ -43,10 +51,21 @@ The application provides unified endpoints that automatically detect whether to 
   - Returns JSON when `Accept: application/json` header is set
 - `GET /brand/{id}` - Get specific brand details
 - `POST /brand/new` - Create new brand
-- `PUT /brand/{id}/edit` - Update existing brand
+- `PATCH /brand/{id}/edit` - Update existing brand
 - `DELETE /brand/{id}` - Delete brand
 
 ### Geolocation Testing
+
+The application automatically detects user 
+location using the `CF-IPCountry` HTTP header 
+from Cloudflare:
+
+- **Country detected**: Shows brands filtered 
+by country code
+- **No country detected**: Shows global toplist 
+with all available casinos
+- **Supported format**: ISO-2 country codes 
+(BG, US, UK, etc.)
 
 - `GET /brand/fake-header/{countryCode}` - Test geolocation with fake country header
   - Example: `/brand/fake-header/BG` for Bulgaria
@@ -58,58 +77,5 @@ The application provides unified endpoints that automatically detect whether to 
   2. **United States**: http://localhost:8080/brand/fake-header/US
   3. **Invalid country**: http://localhost:8080/brand/fake-header/XYZ
 
-## API Usage Examples
 
-### Get Brands List (JSON)
-```bash
-curl -H "Accept: application/json" http://localhost:8080/brand
-```
-
-### Create New Brand (JSON)
-```bash
-curl -X POST http://localhost:8080/brand/new \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
-  -d '{"name":"New Casino","image":"https://example.com/image.jpg","rating":5,"countryCode":"US"}'
-```
-
-### Update Brand (JSON)
-```bash
-curl -X PUT http://localhost:8080/brand/1/edit \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
-  -d '{"rating":4}'
-```
-
-### Delete Brand
-```bash
-curl -X DELETE http://localhost:8080/brand/1
-```
-
-## Data Validation
-
-The application includes comprehensive validation for all brand data:
-
-- **Name**: Required, 2-255 characters
-- **Image**: Valid URL, max 500 characters
-- **Rating**: Integer between 1-5
-- **Country Code**: Exactly 2 uppercase letters (ISO-2 format)
-
-Validation errors are returned as JSON for API requests and displayed in forms for web requests.
-
-## Geolocation Logic
-
-The application automatically detects user location using the `CF-IPCountry` HTTP header from Cloudflare:
-
-- **Country detected**: Shows brands filtered by country code
-- **No country detected**: Shows global toplist with all available casinos
-- **Supported format**: ISO-2 country codes (BG, US, UK, etc.)
-
-## Database
-
-- **Database**: PostgreSQL 15
-- **Host**: localhost:5432
-- **Database**: bluewindow_db
-- **Username**: bluewindow
-- **Password**: password
 
