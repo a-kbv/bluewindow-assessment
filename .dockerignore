@@ -1,0 +1,11 @@
+.git
+.gitignore
+README.md
+docker-compose.yml
+.dockerignore
+vendor/
+var/
+.env.local
+.env.test
+node_modules/
+
