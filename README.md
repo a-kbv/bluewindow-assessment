@@ -2,6 +2,9 @@
 
 A CRUD application for managing casino brands with geolocation-based toplist configuration. Built with Symfony 7, PHP 8.3, and Docker.
 
+## Preview
+
+![Screenshot of app.](preview.png)
 ## Features
 
 - Full CRUD operations for casino brands
